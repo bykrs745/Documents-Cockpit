@@ -304,6 +304,12 @@
             </div>
           </div>
           
+          <div id="floatingOcrRetryContainer" style="display:none; align-items:center; justify-content:center; gap:10px; margin-bottom: 12px; background: var(--bg-panel); padding: 12px; border-radius: 10px; border: 1px dashed var(--danger);">
+             <span style="color:var(--danger); font-weight:bold; font-size:14px;">OCR通信エラー</span>
+             <span id="ocrErrorBadge" style="background:var(--danger); color:white; padding: 2px 6px; border-radius: 6px; font-size: 12px; font-weight:bold;"></span>
+             <button class="btn-primary" style="margin:0; padding: 8px 16px; font-size: 14px; width: auto; background: var(--theme-evidence);" onclick="retryOcrFloating()">🔄 再実行</button>
+          </div>
+          
           <input type="text" id="evVarTitle" placeholder="{{標題}}" class="autofilled" value="" onchange="syncVariables('evTitle', this.value); removeAutoFill(this)">
         </details>
         <div id="imagesContainer">
@@ -3698,8 +3704,13 @@
                       if(res.ocrData.data["標題"] && !currentTitle) { syncVariables('evTitle', res.ocrData.data["標題"]); updated = true; }
                       if(res.ocrData.data["作成日"] && !currentDate) { syncVariables('evDate', res.ocrData.data["作成日"]); updated = true; }
                       if(updated) showToast('OCR解析完了: 変数を自動補完しました');
+                      document.getElementById('floatingOcrRetryContainer').style.display = 'none';
                     } else if (isFirstImage && res.ocrData && !res.ocrData.success) {
                       showToast('OCRエラー: ' + res.ocrData.error);
+                      const match = res.ocrData.error.match(/\b(429|503|500|403|400)\b/);
+                      const errorCode = match ? match[0] : '!';
+                      document.getElementById('ocrErrorBadge').textContent = errorCode;
+                      document.getElementById('floatingOcrRetryContainer').style.display = 'flex';
                     }
                   } else {
                     labelText.textContent = "アップロード失敗";
@@ -3941,8 +3952,13 @@
                       if(res.ocrData.data["標題"] && !currentTitle) { syncVariables('evTitle', res.ocrData.data["標題"]); updated = true; }
                       if(res.ocrData.data["作成日"] && !currentDate) { syncVariables('evDate', res.ocrData.data["作成日"]); updated = true; }
                       if(updated) showToast('OCR解析完了: 変数を自動補完しました');
+                      document.getElementById('floatingOcrRetryContainer').style.display = 'none';
                     } else if (isFirstImage && res.ocrData && !res.ocrData.success) {
                       showToast('OCRエラー: ' + res.ocrData.error);
+                      const match = res.ocrData.error.match(/\b(429|503|500|403|400)\b/);
+                      const errorCode = match ? match[0] : '!';
+                      document.getElementById('ocrErrorBadge').textContent = errorCode;
+                      document.getElementById('floatingOcrRetryContainer').style.display = 'flex';
                     }
                   } else {
                     labelText.textContent = "アップロード失敗";
@@ -3957,6 +3973,16 @@
           clearImage(clearBtn);
         }
         checkImageInputs();
+      }
+
+      function retryOcrFloating() {
+        const firstRow = document.querySelector('#imgRow_1');
+        if (firstRow) {
+          const btn = firstRow.querySelector('.btn-secondary[title="OCR再実行"]');
+          if (btn) {
+             retryOcr(btn);
+          }
+        }
       }
 
       function retryOcr(btn) {
@@ -3999,9 +4025,14 @@
               }
               const fileName = input.files && input.files.length > 0 ? input.files[0].name : "解析完了";
               labelText.textContent = fileName;
+              document.getElementById('floatingOcrRetryContainer').style.display = 'none';
             } else {
               labelText.textContent = "OCR失敗";
               showToast('OCRエラー: ' + res.error);
+              const match = res.error.match(/\b(429|503|500|403|400)\b/);
+              const errorCode = match ? match[0] : '!';
+              document.getElementById('ocrErrorBadge').textContent = errorCode;
+              document.getElementById('floatingOcrRetryContainer').style.display = 'flex';
             }
           }).withFailureHandler(function(e) {
              labelText.textContent = "OCR失敗";
@@ -4404,9 +4435,13 @@
         if (num) {
           const key = toZenkakuVariables(sign + num);
           if (!currentCaseData.evidenceMap) currentCaseData.evidenceMap = {};
+          const existingData = currentCaseData.evidenceMap[key] || {};
           currentCaseData.evidenceMap[key] = {
             title: document.getElementById('evVarTitle') ? document.getElementById('evVarTitle').value : '',
-            images: data
+            images: data,
+            date: existingData.date || '',
+            creator: existingData.creator || '',
+            purpose: existingData.purpose || ''
           };
         }
         
@@ -5159,10 +5194,20 @@
           updateEvNumDisplay();
           
           const key = toZenkakuVariables(sign + num);
-          if (currentCaseData.evidenceMap && currentCaseData.evidenceMap[key] && currentCaseData.evidenceMap[key].images) {
-            currentCaseData.evidenceImages = currentCaseData.evidenceMap[key].images;
-            restoreEvidenceImages();
+          if (currentCaseData.evidenceMap && currentCaseData.evidenceMap[key]) {
+            syncVariables('evDate', currentCaseData.evidenceMap[key].date || '');
+            syncVariables('evCreator', currentCaseData.evidenceMap[key].creator || '');
+            syncVariables('evPurpose', currentCaseData.evidenceMap[key].purpose || '');
+            if (currentCaseData.evidenceMap[key].images) {
+              currentCaseData.evidenceImages = currentCaseData.evidenceMap[key].images;
+              restoreEvidenceImages();
+            } else {
+              clearEvidenceUIOnly();
+            }
           } else {
+            syncVariables('evDate', '');
+            syncVariables('evCreator', '');
+            syncVariables('evPurpose', '');
             clearEvidenceUIOnly();
           }
           
