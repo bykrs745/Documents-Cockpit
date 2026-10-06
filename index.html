@@ -1383,16 +1383,21 @@
                           m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                           d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                           let yearNum = parseInt(y, 10);
+                          let mNum = parseInt(m, 10);
+                          let dNum = parseInt(d, 10);
                           let reiwaYear = yearNum - 2018;
                           let rYearStr = (reiwaYear === 1) ? '元' : reiwaYear.toString();
-                          return `R${rYearStr}.${m}.${d}`;
+                          return `R${rYearStr}.${mNum}.${dNum}`;
                         });
                         formattedDate = formattedDate.replace(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/, function(match, y, m, d) {
                           y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                           m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                           d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+                          let mNum = parseInt(m, 10);
+                          let dNum = parseInt(d, 10);
                           if (y === '元') y = '1';
-                          return `R${y}.${m}.${d}`;
+                          let yNum = parseInt(y, 10);
+                          return `R${yNum}.${mNum}.${dNum}`;
                         });
                       }
                       cells[3] = ` ${formattedDate} `;
@@ -1413,6 +1418,7 @@
             }
             if (updated) {
               bodyEl.value = lines.join('\n');
+              currentCaseData.properties.listBodyText = bodyEl.value;
               if (clearedOthers) {
                 showToast(`${targetSign}第${targetNumZ}号証の標題変更を検知し、表の他項目をクリアしました`);
               }
@@ -3703,6 +3709,7 @@
                       let updated = false;
                       if(res.ocrData.data["標題"] && !currentTitle) { syncVariables('evTitle', res.ocrData.data["標題"]); updated = true; }
                       if(res.ocrData.data["作成日"] && !currentDate) { syncVariables('evDate', res.ocrData.data["作成日"]); updated = true; }
+                      if(res.ocrData.data["作成者"] && !currentCreator) { syncVariables('evCreator', res.ocrData.data["作成者"]); updated = true; }
                       if(updated) showToast('OCR解析完了: 変数を自動補完しました');
                       document.getElementById('floatingOcrRetryContainer').style.display = 'none';
                     } else if (isFirstImage && res.ocrData && !res.ocrData.success) {
@@ -3951,6 +3958,7 @@
                       let updated = false;
                       if(res.ocrData.data["標題"] && !currentTitle) { syncVariables('evTitle', res.ocrData.data["標題"]); updated = true; }
                       if(res.ocrData.data["作成日"] && !currentDate) { syncVariables('evDate', res.ocrData.data["作成日"]); updated = true; }
+                      if(res.ocrData.data["作成者"] && !currentCreator) { syncVariables('evCreator', res.ocrData.data["作成者"]); updated = true; }
                       if(updated) showToast('OCR解析完了: 変数を自動補完しました');
                       document.getElementById('floatingOcrRetryContainer').style.display = 'none';
                     } else if (isFirstImage && res.ocrData && !res.ocrData.success) {
@@ -4594,16 +4602,21 @@
                     m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                     d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                     let yearNum = parseInt(y, 10);
+                    let mNum = parseInt(m, 10);
+                    let dNum = parseInt(d, 10);
                     let reiwaYear = yearNum - 2018;
                     let rYearStr = (reiwaYear === 1) ? '元' : reiwaYear.toString();
-                    return `R${rYearStr}.${m}.${d}`;
+                    return `R${rYearStr}.${mNum}.${dNum}`;
                   });
                   itemDate = itemDate.replace(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/, function(match, y, m, d) {
                     y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                     m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                     d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+                    let mNum = parseInt(m, 10);
+                    let dNum = parseInt(d, 10);
                     if (y === '元') y = '1';
-                    return `R${y}.${m}.${d}`;
+                    let yNum = parseInt(y, 10);
+                    return `R${yNum}.${mNum}.${dNum}`;
                   });
                 }
                 
@@ -4623,16 +4636,21 @@
                 m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                 d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                 let yearNum = parseInt(y, 10);
+                let mNum = parseInt(m, 10);
+                let dNum = parseInt(d, 10);
                 let reiwaYear = yearNum - 2018;
                 let rYearStr = (reiwaYear === 1) ? '元' : reiwaYear.toString();
-                return `R${rYearStr}.${m}.${d}`;
+                return `R${rYearStr}.${mNum}.${dNum}`;
               });
               dateStr = dateStr.replace(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/, function(match, y, m, d) {
                 y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                 m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
                 d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+                let mNum = parseInt(m, 10);
+                let dNum = parseInt(d, 10);
                 if (y === '元') y = '1';
-                return `R${y}.${m}.${d}`;
+                let yNum = parseInt(y, 10);
+                return `R${yNum}.${mNum}.${dNum}`;
               });
             }
             const creator = p.evCreator ? toZenkakuVariables(p.evCreator) : '';
