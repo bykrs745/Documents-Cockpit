@@ -523,7 +523,7 @@ function applyStylesToBrief(doc, body, content, title) {
       p.setAlignment(DocumentApp.HorizontalAlignment.LEFT);
       isAfterHeader = true;
       continue;
-    } else if (line.endsWith('印') || line === '以上' || line.match(/^[令和平成昭和]+[０-９元]+年[０-９]+月[０-９]+日$/)) {
+    } else if (line.endsWith('印') || line === '以上' || line.replace(/[\s\u3000]+/g, '').match(/^[令和平成昭和]+[０-９元]+年[０-９]+月[０-９]+日$/)) {
       p.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
       p.setIndentEnd(0); // 右インデントを本文枠に合わせるためリセット
       if (line.endsWith('印')) {
@@ -801,7 +801,7 @@ function applyStylesToEvidenceList(doc, body, content, title) {
       p.setAlignment(DocumentApp.HorizontalAlignment.LEFT);
       isAfterHeader = true;
       continue;
-    } else if (line.endsWith('印') || line === '以上' || line.match(/^[令和平成昭和]+[０-９元]+年[０-９]+月[０-９]+日$/)) {
+    } else if (line.endsWith('印') || line === '以上' || line.replace(/[\s\u3000]+/g, '').match(/^[令和平成昭和]+[０-９元]+年[０-９]+月[０-９]+日$/)) {
       p.setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
       p.setIndentEnd(0); // 右インデントを本文枠に合わせるためリセット
       if (line.endsWith('印')) {

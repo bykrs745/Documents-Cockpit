@@ -844,26 +844,79 @@
 
       function parseJapaneseDate(dateStr) {
         if (!dateStr) return null;
+        let cleanStr = dateStr.replace(/[\s\u3000]+/g, '');
         let y = 0, m = 0, d = 0;
-        const matchReiwa = dateStr.match(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/);
-        if (matchReiwa) {
-          let yy = matchReiwa[1];
+        const matchGengo = cleanStr.match(/(令和|平成|昭和)([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/);
+        if (matchGengo) {
+          let gengo = matchGengo[1];
+          let yy = matchGengo[2];
           if (yy === '元') yy = 1;
           else yy = parseInt(yy.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
-          y = yy + 2018;
-          m = parseInt(matchReiwa[2].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
-          d = parseInt(matchReiwa[3].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
+          
+          if (gengo === '令和') y = yy + 2018;
+          else if (gengo === '平成') y = yy + 1988;
+          else if (gengo === '昭和') y = yy + 1925;
+          
+          m = parseInt(matchGengo[3].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
+          d = parseInt(matchGengo[4].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
           return new Date(y, m - 1, d);
         }
-        const matchR = dateStr.match(/R([０-９0-9]+)\.([０-９0-9]+)\.([０-９0-9]+)/);
+        const matchR = cleanStr.match(/(R|H|S|Ｒ|Ｈ|Ｓ)([０-９0-9]+)\.([０-９0-9]+)\.([０-９0-9]+)/i);
         if (matchR) {
-          let yy = parseInt(matchR[1].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
-          y = yy + 2018;
-          m = parseInt(matchR[2].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
-          d = parseInt(matchR[3].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
+          let gengo = matchR[1].toUpperCase();
+          if (gengo === 'Ｒ') gengo = 'R';
+          if (gengo === 'Ｈ') gengo = 'H';
+          if (gengo === 'Ｓ') gengo = 'S';
+          
+          let yy = parseInt(matchR[2].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
+          
+          if (gengo === 'R') y = yy + 2018;
+          else if (gengo === 'H') y = yy + 1988;
+          else if (gengo === 'S') y = yy + 1925;
+          
+          m = parseInt(matchR[3].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
+          d = parseInt(matchR[4].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
           return new Date(y, m - 1, d);
         }
         return null;
+      }
+
+      function formatJapaneseDateToShort(dateStr) {
+        if (!dateStr) return dateStr;
+        let s = dateStr.replace(/[\s\u3000]+/g, '');
+        s = s.replace(/([０-９0-9]{4})[年/\.]([０-９0-9]{1,2})[月/\.]([０-９0-9]{1,2})日?/, function(match, y, m, d) {
+          y = y.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+          m = m.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+          d = d.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+          let yearNum = parseInt(y, 10);
+          let mNum = parseInt(m, 10);
+          let dNum = parseInt(d, 10);
+          if (yearNum >= 2019) {
+            let rYear = yearNum - 2018;
+            return `R${rYear === 1 ? '元' : rYear}.${mNum}.${dNum}`;
+          } else if (yearNum >= 1989) {
+            let hYear = yearNum - 1988;
+            return `H${hYear === 1 ? '元' : hYear}.${mNum}.${dNum}`;
+          } else if (yearNum >= 1926) {
+            let sYear = yearNum - 1925;
+            return `S${sYear === 1 ? '元' : sYear}.${mNum}.${dNum}`;
+          }
+          return match;
+        });
+        s = s.replace(/(令和|平成|昭和)([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日?/, function(match, gengo, y, m, d) {
+          y = y.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+          m = m.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+          d = d.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+          if (y === '元') y = '1';
+          let yNum = parseInt(y, 10);
+          let mNum = parseInt(m, 10);
+          let dNum = parseInt(d, 10);
+          let prefix = 'R';
+          if (gengo === '平成') prefix = 'H';
+          if (gengo === '昭和') prefix = 'S';
+          return `${prefix}${yNum}.${mNum}.${dNum}`;
+        });
+        return s;
       }
 
       function finalizeApplyCaseConfig(name) {
@@ -1334,9 +1387,9 @@
           }
           
           const bodyEl = document.getElementById('listVarBody');
-          if (bodyEl && bodyEl.value.includes('|')) {
+          if (num && bodyEl && bodyEl.value.includes('|')) {
             const targetSign = sign ? toZenkakuVariables(sign) : '甲';
-            const targetNumZ = num ? toZenkakuVariables(num) : '１';
+            const targetNumZ = toZenkakuVariables(num);
             
             let lines = bodyEl.value.split('\n');
             let updated = false;
@@ -1378,27 +1431,7 @@
                     } else if (key === 'evDate' && cells.length > 3) {
                       let formattedDate = displayValue;
                       if (formattedDate) {
-                        formattedDate = formattedDate.replace(/([０-９0-9]{4})[年/\.]([０-９0-9]{1,2})[月/\.]([０-９0-9]{1,2})日?/, function(match, y, m, d) {
-                          y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                          m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                          d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                          let yearNum = parseInt(y, 10);
-                          let mNum = parseInt(m, 10);
-                          let dNum = parseInt(d, 10);
-                          let reiwaYear = yearNum - 2018;
-                          let rYearStr = (reiwaYear === 1) ? '元' : reiwaYear.toString();
-                          return `R${rYearStr}.${mNum}.${dNum}`;
-                        });
-                        formattedDate = formattedDate.replace(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/, function(match, y, m, d) {
-                          y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                          m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                          d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                          let mNum = parseInt(m, 10);
-                          let dNum = parseInt(d, 10);
-                          if (y === '元') y = '1';
-                          let yNum = parseInt(y, 10);
-                          return `R${yNum}.${mNum}.${dNum}`;
-                        });
+                        formattedDate = formatJapaneseDateToShort(formattedDate);
                       }
                       cells[3] = ` ${formattedDate} `;
                       lines[i] = cells.join('|');
@@ -2592,24 +2625,7 @@
             
             // 作成日を「R〇.〇.〇」形式に変換
             if (date) {
-              // 西暦 (YYYY年MM月DD日 または YYYY.MM.DD または YYYY/MM/DD) を R○.○.○ に変換
-              date = date.replace(/([０-９0-9]{4})[年\/\.]([０-９0-9]{1,2})[月\/\.]([０-９0-9]{1,2})日?/, function(match, y, m, d) {
-                y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                let yearNum = parseInt(y, 10);
-                let reiwaYear = yearNum - 2018;
-                let rYearStr = (reiwaYear === 1) ? '元' : reiwaYear.toString();
-                return `R${rYearStr}.${m}.${d}`;
-              });
-              // 令和 (令和○年○月○日) を R○.○.○ に変換
-              date = date.replace(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/, function(match, y, m, d) {
-                y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                if (y === '元') y = '1';
-                return `R${y}.${m}.${d}`;
-              });
+              date = formatJapaneseDateToShort(date);
             }
             
             const creator = p.evCreator ? toZenkakuVariables(p.evCreator) : '';
@@ -3596,21 +3612,7 @@
           let newCreator = ocrData.data["作成者"] && !currentCreator ? ocrData.data["作成者"] : '';
           
           if (newDate) {
-            newDate = newDate.replace(/([０-９0-9]{4})[年/\.]([０-９0-9]{1,2})[月/\.]([０-９0-9]{1,2})日?/, function(match, y, m, d) {
-              y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-              m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-              d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-              let yearNum = parseInt(y, 10);
-              let rYearStr = (yearNum - 2018 === 1) ? '元' : (yearNum - 2018).toString();
-              return `R${rYearStr}.${m}.${d}`;
-            });
-            newDate = newDate.replace(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/, function(match, y, m, d) {
-              y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-              m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-              d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-              if (y === '元') y = '1';
-              return `R${y}.${m}.${d}`;
-            });
+            newDate = formatJapaneseDateToShort(newDate);
           }
           
           lines.push(`| ${targetNumZ} | ${newTitle ? newTitle + '（写し）' : ''} | ${newDate} | ${newCreator} |  | |`);
@@ -4597,27 +4599,7 @@
                 let itemPurpose = item.purpose || extData.purpose || '';
 
                 if (itemDate) {
-                  itemDate = itemDate.replace(/([０-９0-9]{4})[年/\.]([０-９0-9]{1,2})[月/\.]([０-９0-9]{1,2})日?/, function(match, y, m, d) {
-                    y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                    m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                    d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                    let yearNum = parseInt(y, 10);
-                    let mNum = parseInt(m, 10);
-                    let dNum = parseInt(d, 10);
-                    let reiwaYear = yearNum - 2018;
-                    let rYearStr = (reiwaYear === 1) ? '元' : reiwaYear.toString();
-                    return `R${rYearStr}.${mNum}.${dNum}`;
-                  });
-                  itemDate = itemDate.replace(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/, function(match, y, m, d) {
-                    y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                    m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                    d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                    let mNum = parseInt(m, 10);
-                    let dNum = parseInt(d, 10);
-                    if (y === '元') y = '1';
-                    let yNum = parseInt(y, 10);
-                    return `R${yNum}.${mNum}.${dNum}`;
-                  });
+                  itemDate = formatJapaneseDateToShort(itemDate);
                 }
                 
                 rowsHtml += `| ${num} | ${title ? title + '（写し）' : ''} | ${itemDate} | ${itemCreator} | ${itemPurpose} | |\n`;
@@ -4631,27 +4613,7 @@
             const title = p.evTitle ? toZenkakuVariables(p.evTitle) : '';
             let dateStr = p.evDate ? toZenkakuVariables(p.evDate) : '';
             if (dateStr) {
-              dateStr = dateStr.replace(/([０-９0-9]{4})[年/\.]([０-９0-9]{1,2})[月/\.]([０-９0-9]{1,2})日?/, function(match, y, m, d) {
-                y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                let yearNum = parseInt(y, 10);
-                let mNum = parseInt(m, 10);
-                let dNum = parseInt(d, 10);
-                let reiwaYear = yearNum - 2018;
-                let rYearStr = (reiwaYear === 1) ? '元' : reiwaYear.toString();
-                return `R${rYearStr}.${mNum}.${dNum}`;
-              });
-              dateStr = dateStr.replace(/令和([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/, function(match, y, m, d) {
-                y = y.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                m = m.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                d = d.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
-                let mNum = parseInt(m, 10);
-                let dNum = parseInt(d, 10);
-                if (y === '元') y = '1';
-                let yNum = parseInt(y, 10);
-                return `R${yNum}.${mNum}.${dNum}`;
-              });
+              dateStr = formatJapaneseDateToShort(dateStr);
             }
             const creator = p.evCreator ? toZenkakuVariables(p.evCreator) : '';
             const purpose = p.evPurpose ? toZenkakuVariables(p.evPurpose) : '';
