@@ -846,7 +846,7 @@
         if (!dateStr) return null;
         let cleanStr = dateStr.replace(/[\s\u3000]+/g, '');
         let y = 0, m = 0, d = 0;
-        const matchGengo = cleanStr.match(/(令和|平成|昭和)([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日/);
+        const matchGengo = cleanStr.match(/(令和|平成|昭和)([０-９0-9元〇◯]+)年([０-９0-9〇◯]+)月([０-９0-9〇◯]+)日/);
         if (matchGengo) {
           let gengo = matchGengo[1];
           let yy = matchGengo[2];
@@ -859,9 +859,10 @@
           
           m = parseInt(matchGengo[3].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
           d = parseInt(matchGengo[4].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
+          if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
           return new Date(y, m - 1, d);
         }
-        const matchR = cleanStr.match(/(R|H|S|Ｒ|Ｈ|Ｓ)([０-９0-9]+)\.([０-９0-9]+)\.([０-９0-9]+)/i);
+        const matchR = cleanStr.match(/(R|H|S|Ｒ|Ｈ|Ｓ)([０-９0-9〇◯]+)\.([０-９0-9〇◯]+)\.([０-９0-9〇◯]+)/i);
         if (matchR) {
           let gengo = matchR[1].toUpperCase();
           if (gengo === 'Ｒ') gengo = 'R';
@@ -876,6 +877,7 @@
           
           m = parseInt(matchR[3].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
           d = parseInt(matchR[4].replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0)), 10);
+          if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
           return new Date(y, m - 1, d);
         }
         return null;
@@ -884,37 +886,39 @@
       function formatJapaneseDateToShort(dateStr) {
         if (!dateStr) return dateStr;
         let s = dateStr.replace(/[\s\u3000]+/g, '');
-        s = s.replace(/([０-９0-9]{4})[年/\.]([０-９0-9]{1,2})[月/\.]([０-９0-9]{1,2})日?/, function(match, y, m, d) {
+        s = s.replace(/([０-９0-9〇◯]{4})[年/\.]([０-９0-9〇◯]{1,2})[月/\.]([０-９0-9〇◯]{1,2})日?/, function(match, y, m, d) {
           y = y.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
           m = m.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
           d = d.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
-          let yearNum = parseInt(y, 10);
-          let mNum = parseInt(m, 10);
-          let dNum = parseInt(d, 10);
-          if (yearNum >= 2019) {
-            let rYear = yearNum - 2018;
-            return `R${rYear === 1 ? '元' : rYear}.${mNum}.${dNum}`;
-          } else if (yearNum >= 1989) {
-            let hYear = yearNum - 1988;
-            return `H${hYear === 1 ? '元' : hYear}.${mNum}.${dNum}`;
-          } else if (yearNum >= 1926) {
-            let sYear = yearNum - 1925;
-            return `S${sYear === 1 ? '元' : sYear}.${mNum}.${dNum}`;
+          let yearNum = y.match(/[〇◯]/) ? y : parseInt(y, 10);
+          let mNum = m.match(/[〇◯]/) ? m : parseInt(m, 10);
+          let dNum = d.match(/[〇◯]/) ? d : parseInt(d, 10);
+          if (typeof yearNum === 'number') {
+            if (yearNum >= 2019) {
+              let rYear = yearNum - 2018;
+              return `R${rYear === 1 ? '元' : rYear}.${mNum}.${dNum}`;
+            } else if (yearNum >= 1989) {
+              let hYear = yearNum - 1988;
+              return `H${hYear === 1 ? '元' : hYear}.${mNum}.${dNum}`;
+            } else if (yearNum >= 1926) {
+              let sYear = yearNum - 1925;
+              return `S${sYear === 1 ? '元' : sYear}.${mNum}.${dNum}`;
+            }
           }
           return match;
         });
-        s = s.replace(/(令和|平成|昭和)([０-９0-9元]+)年([０-９0-9]+)月([０-９0-9]+)日?/, function(match, gengo, y, m, d) {
+        s = s.replace(/(令和|平成|昭和)([０-９0-9元〇◯]+)年([０-９0-9〇◯]+)月([０-９0-9〇◯]+)日?/, function(match, gengo, y, m, d) {
           y = y.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
           m = m.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
           d = d.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
           if (y === '元') y = '1';
-          let yNum = parseInt(y, 10);
-          let mNum = parseInt(m, 10);
-          let dNum = parseInt(d, 10);
+          let yVal = y.match(/[〇◯]/) ? y : parseInt(y, 10);
+          let mVal = m.match(/[〇◯]/) ? m : parseInt(m, 10);
+          let dVal = d.match(/[〇◯]/) ? d : parseInt(d, 10);
           let prefix = 'R';
           if (gengo === '平成') prefix = 'H';
           if (gengo === '昭和') prefix = 'S';
-          return `${prefix}${yNum}.${mNum}.${dNum}`;
+          return `${prefix}${yVal}.${mVal}.${dVal}`;
         });
         return s;
       }
