@@ -3889,77 +3889,65 @@
           
           if (!currentCaseData.imageCache) currentCaseData.imageCache = {};
           const hash = await calculateFileHash(file);
-          if (currentCaseData.imageCache[hash]) {
+          if (currentCaseData.imageCache[hash] && currentCaseData.imageCache[hash].fileId) {
             const cached = currentCaseData.imageCache[hash];
-            if (cached.base64) {
-              preview.src = "data:image/jpeg;base64," + cached.base64;
-              preview.style.display = 'block'; clearBtn.style.display = 'flex';
-              input.setAttribute('data-base64', cached.base64);
-              input.setAttribute('data-file-id', cached.fileId);
-              saveEvidenceCache();
-              showToast('既存のアップロードデータを再利用しました');
-              checkImageInputs();
-              
-              // ▼ 追加: キャッシュ利用時も画像1ならOCRを実行
-              const rowIndex = parseInt(row.getAttribute('data-index') || '0', 10);
-              const isFirstImage = (rowIndex === 0 || row.id === 'imgRow_1');
-              const sign = document.getElementById('evVarSign') ? document.getElementById('evVarSign').value || '甲' : '甲';
-              const num = document.getElementById('evVarNum') ? document.getElementById('evVarNum').value : '';
-              if (isFirstImage && num && typeof google !== 'undefined') {
-                labelText.textContent = "☁️ OCR解析中...";
-                google.script.run.withSuccessHandler(function(res) {
-                  if (res.success) {
-                    applyOcrResultToVariables({success: true, data: res.data}, sign, num);
-                  }
-                  labelText.textContent = file.name;
-                }).withFailureHandler(function(e) {
-                  labelText.textContent = file.name;
-                }).performOcrAndExtract(cached.base64, file.type || 'image/jpeg', cached.fileId);
-              }
-              // ▲ 追加ここまで
-              return;
-            } else if (cached.fileId) {
-              labelText.textContent = "☁️️ 読込中...";
-              if (typeof google !== 'undefined') {
-                google.script.run.withSuccessHandler(function(resData) {
-                  preview.src = "data:" + resData.mimeType + ";base64," + resData.base64;
-                  preview.style.display = 'block'; clearBtn.style.display = 'flex';
-                  input.setAttribute('data-base64', resData.base64);
-                  input.setAttribute('data-file-id', cached.fileId);
-                  currentCaseData.imageCache[hash].base64 = resData.base64; 
-                  saveEvidenceCache();
-                  showToast('クラウドの既存ファイルを再利用しました');
-                  checkImageInputs();
-                  
-                  // ▼ 追加: クラウドキャッシュ利用時も画像1ならOCRを実行
-                  const rowIndex = parseInt(row.getAttribute('data-index') || '0', 10);
-                  const isFirstImage = (rowIndex === 0 || row.id === 'imgRow_1');
-                  const sign = document.getElementById('evVarSign') ? document.getElementById('evVarSign').value || '甲' : '甲';
-                  const num = document.getElementById('evVarNum') ? document.getElementById('evVarNum').value : '';
-                  if (isFirstImage && num) {
+            
+            // ローカルにあるファイルから直接Base64を生成してプレビュー表示する（クラウドからのダウンロードをスキップ）
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              const img = new Image();
+              img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1200;
+                let width = img.width; let height = img.height;
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                const base64Str = canvas.toDataURL(file.type || 'image/jpeg', 0.8).split(',')[1];
+                
+                preview.src = "data:image/jpeg;base64," + base64Str;
+                preview.style.display = 'block'; clearBtn.style.display = 'flex';
+                input.setAttribute('data-base64', base64Str);
+                input.setAttribute('data-file-id', cached.fileId);
+                
+                cached.base64 = base64Str;
+                saveEvidenceCache();
+                showToast('既存のアップロードデータを再利用しました');
+                checkImageInputs();
+                
+                // 画像1ならOCRを実行（キャッシュがあれば再利用）
+                const rowIndex = parseInt(row.getAttribute('data-index') || '0', 10);
+                const isFirstImage = (rowIndex === 0 || row.id === 'imgRow_1');
+                const sign = document.getElementById('evVarSign') ? document.getElementById('evVarSign').value || '甲' : '甲';
+                const num = document.getElementById('evVarNum') ? document.getElementById('evVarNum').value : '';
+                
+                if (isFirstImage && num) {
+                  if (cached.ocrData) {
+                    applyOcrResultToVariables({success: true, data: cached.ocrData}, sign, num);
+                    labelText.textContent = file.name;
+                  } else if (typeof google !== 'undefined') {
                     labelText.textContent = "☁️ OCR解析中...";
                     google.script.run.withSuccessHandler(function(res) {
                       if (res.success) {
+                        cached.ocrData = res.data;
+                        saveEvidenceCache();
                         applyOcrResultToVariables({success: true, data: res.data}, sign, num);
                       }
                       labelText.textContent = file.name;
                     }).withFailureHandler(function(e) {
                       labelText.textContent = file.name;
-                    }).performOcrAndExtract(resData.base64, resData.mimeType, cached.fileId);
-                  } else {
-                    labelText.textContent = file.name;
+                    }).performOcrAndExtract(base64Str, file.type || 'image/jpeg', cached.fileId);
                   }
-                  // ▲ 追加ここまで
-                }).withFailureHandler(function(e) {
-                  showToast('エラー: ファイルが存在しません。キャッシュをクリアしました。');
-                  delete currentCaseData.imageCache[hash];
-                  saveCurrentCaseSettings();
-                  labelText.textContent = '未選択';
-                  clearImage(clearBtn);
-                }).getDriveFileBase64(cached.fileId);
-              }
-              return;
-            }
+                } else {
+                  labelText.textContent = file.name;
+                }
+              };
+              img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            return;
           }
           
           const reader = new FileReader();
@@ -3994,7 +3982,11 @@
                   if (res.success) {
                     input.setAttribute('data-file-id', res.fileId);
                     labelText.textContent = file.name;
-                    currentCaseData.imageCache[hash] = { fileId: res.fileId, base64: base64Str };
+                    currentCaseData.imageCache[hash] = { 
+                      fileId: res.fileId, 
+                      base64: base64Str,
+                      ocrData: (res.ocrData && res.ocrData.success) ? res.ocrData.data : null 
+                    };
                     saveEvidenceCache(); 
                     if (isFirstImage && res.ocrData && res.ocrData.success) {
                       const p = currentCaseData.properties || {};
