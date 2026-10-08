@@ -1383,14 +1383,16 @@
           const numEl = document.getElementById('evVarNum');
           const sign = signEl ? (signEl.value || '甲') : '甲';
           const num = numEl ? numEl.value : '';
-          if (num && currentCaseData.evidenceMap) {
+          if (num) {
+            if (!currentCaseData.evidenceMap) currentCaseData.evidenceMap = {};
             const evKey = toZenkakuVariables(sign + num);
-            if (currentCaseData.evidenceMap[evKey]) {
-              if (key === 'evTitle') currentCaseData.evidenceMap[evKey].title = displayValue;
-              if (key === 'evDate') currentCaseData.evidenceMap[evKey].date = displayValue;
-              if (key === 'evCreator') currentCaseData.evidenceMap[evKey].creator = displayValue;
-              if (key === 'evPurpose') currentCaseData.evidenceMap[evKey].purpose = displayValue;
+            if (!currentCaseData.evidenceMap[evKey]) {
+              currentCaseData.evidenceMap[evKey] = { title: '', images: [], date: '', creator: '', purpose: '' };
             }
+            if (key === 'evTitle') currentCaseData.evidenceMap[evKey].title = displayValue;
+            if (key === 'evDate') currentCaseData.evidenceMap[evKey].date = displayValue;
+            if (key === 'evCreator') currentCaseData.evidenceMap[evKey].creator = displayValue;
+            if (key === 'evPurpose') currentCaseData.evidenceMap[evKey].purpose = displayValue;
           }
           
           const bodyEl = document.getElementById('listVarBody');
@@ -3569,6 +3571,42 @@
           }, 100);
         }
       }
+      function safelyDeleteImage(fileId) {
+        if (!fileId) return;
+        let isUsed = false;
+        const inputs = document.querySelectorAll('.ev-file');
+        for (let i = 0; i < inputs.length; i++) {
+          if (inputs[i].getAttribute('data-file-id') === fileId) {
+            isUsed = true;
+            break;
+          }
+        }
+        if (!isUsed && currentCaseData && currentCaseData.evidenceMap) {
+          for (let key in currentCaseData.evidenceMap) {
+            const ev = currentCaseData.evidenceMap[key];
+            if (ev.images) {
+              for (let j = 0; j < ev.images.length; j++) {
+                if (ev.images[j].fileId === fileId) {
+                  isUsed = true;
+                  break;
+                }
+              }
+            }
+            if (isUsed) break;
+          }
+        }
+        if (!isUsed) {
+          if (typeof google !== 'undefined') google.script.run.deleteTempImage(fileId);
+          if (currentCaseData && currentCaseData.imageCache) {
+            for (const hash in currentCaseData.imageCache) {
+              if (currentCaseData.imageCache[hash].fileId === fileId) {
+                delete currentCaseData.imageCache[hash];
+              }
+            }
+          }
+        }
+      }
+
       function applyOcrResultToVariables(ocrData, sign, num) {
         if (!ocrData || !ocrData.success || !ocrData.data) return;
         const currentTitle = document.getElementById('evVarTitle') ? document.getElementById('evVarTitle').value.trim() : '';
@@ -3644,16 +3682,11 @@
           const oldFileId = input.getAttribute('data-file-id');
           const oldBase64 = input.getAttribute('data-base64');
           if (oldFileId || oldBase64) {
-            if (oldFileId && typeof google !== 'undefined') {
-              google.script.run.deleteTempImage(oldFileId);
-              if (currentCaseData.imageCache) {
-                for (const h in currentCaseData.imageCache) {
-                  if (currentCaseData.imageCache[h].fileId === oldFileId) delete currentCaseData.imageCache[h];
-                }
-              }
-            }
             input.removeAttribute('data-base64');
             input.removeAttribute('data-file-id');
+            if (oldFileId) {
+              safelyDeleteImage(oldFileId);
+            }
             labelText.removeAttribute('data-filename');
             preview.src = '';
             preview.style.display = 'none';
@@ -3853,16 +3886,11 @@
           const oldFileId = input.getAttribute('data-file-id');
           const oldBase64 = input.getAttribute('data-base64');
           if (oldFileId || oldBase64) {
-            if (oldFileId && typeof google !== 'undefined') {
-              google.script.run.deleteTempImage(oldFileId);
-              if (currentCaseData.imageCache) {
-                for (const h in currentCaseData.imageCache) {
-                  if (currentCaseData.imageCache[h].fileId === oldFileId) delete currentCaseData.imageCache[h];
-                }
-              }
-            }
             input.removeAttribute('data-base64');
             input.removeAttribute('data-file-id');
+            if (oldFileId) {
+              safelyDeleteImage(oldFileId);
+            }
             labelText.removeAttribute('data-filename');
             preview.src = '';
             preview.style.display = 'none';
@@ -4094,20 +4122,14 @@
         const labelText = row.querySelector('.file-label-text');
         
         const fileId = input.getAttribute('data-file-id');
-        if (fileId && typeof google !== 'undefined') {
-            google.script.run.deleteTempImage(fileId);
-            if (currentCaseData.imageCache) {
-              for (const hash in currentCaseData.imageCache) {
-                if (currentCaseData.imageCache[hash].fileId === fileId) {
-                  delete currentCaseData.imageCache[hash];
-                }
-              }
-            }
-        }
         
         input.value = '';
         input.removeAttribute('data-base64');
         input.removeAttribute('data-file-id');
+        
+        if (fileId) {
+            safelyDeleteImage(fileId);
+        }
         labelText.removeAttribute('data-filename'); // キャッシュ復活防止のため属性ごと削除
         preview.src = '';
         preview.style.display = 'none';
@@ -4135,17 +4157,12 @@
         const row = btn.closest('.image-row');
         const input = row.querySelector('.ev-file');
         const fileId = input ? input.getAttribute('data-file-id') : null;
-        if (fileId && typeof google !== 'undefined') {
-            google.script.run.deleteTempImage(fileId);
-            
-            if (currentCaseData.imageCache) {
-              for (const hash in currentCaseData.imageCache) {
-                if (currentCaseData.imageCache[hash].fileId === fileId) {
-                  delete currentCaseData.imageCache[hash];
-                }
-              }
-              saveCurrentCaseSettings();
-            }
+        if (input) {
+          input.removeAttribute('data-base64');
+          input.removeAttribute('data-file-id');
+        }
+        if (fileId) {
+            safelyDeleteImage(fileId);
         }
         row.remove();
         updateImageRowNumbers();
@@ -4482,12 +4499,13 @@
           const key = toZenkakuVariables(sign + num);
           if (!currentCaseData.evidenceMap) currentCaseData.evidenceMap = {};
           const existingData = currentCaseData.evidenceMap[key] || {};
+          const p = currentCaseData.properties || {};
           currentCaseData.evidenceMap[key] = {
             title: document.getElementById('evVarTitle') ? document.getElementById('evVarTitle').value : '',
             images: data,
-            date: existingData.date || '',
-            creator: existingData.creator || '',
-            purpose: existingData.purpose || ''
+            date: existingData.date || p.evDate || '',
+            creator: existingData.creator || p.evCreator || '',
+            purpose: existingData.purpose || p.evPurpose || ''
           };
         }
         
@@ -5687,21 +5705,15 @@
             if (pendingEvNumAction === 'delete') {
               if (currentCaseData.evidenceMap && currentCaseData.evidenceMap[oldKey]) {
                 const imagesToDel = currentCaseData.evidenceMap[oldKey].images;
+                delete currentCaseData.evidenceMap[oldKey];
+                
                 if (imagesToDel) {
                   imagesToDel.forEach(img => {
                     if (img.fileId) {
-                      google.script.run.deleteTempImage(img.fileId);
-                      if (currentCaseData.imageCache) {
-                        for (let h in currentCaseData.imageCache) {
-                          if (currentCaseData.imageCache[h].fileId === img.fileId) {
-                            delete currentCaseData.imageCache[h];
-                          }
-                        }
-                      }
+                      safelyDeleteImage(img.fileId);
                     }
                   });
                 }
-                delete currentCaseData.evidenceMap[oldKey];
                 saveCurrentCaseSettings();
               }
               
@@ -5841,15 +5853,10 @@
         const oldFileId = input.getAttribute('data-file-id');
         
         // 1. 古いファイルの実体とキャッシュを削除
-        if (oldFileId && typeof google !== 'undefined') {
-          google.script.run.deleteTempImage(oldFileId);
-          if (currentCaseData && currentCaseData.imageCache) {
-            for (const h in currentCaseData.imageCache) {
-              if (currentCaseData.imageCache[h].fileId === oldFileId) {
-                delete currentCaseData.imageCache[h];
-              }
-            }
-          }
+        if (oldFileId) {
+          input.removeAttribute('data-base64');
+          input.removeAttribute('data-file-id');
+          safelyDeleteImage(oldFileId);
         }
         
         // 2. ドラフト未確定の場合、画像1なら標題等のOCR情報をクリア

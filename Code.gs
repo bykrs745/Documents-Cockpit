@@ -1092,10 +1092,18 @@ function savePreviewToDraft(caseName, title, content, images, clearPrefix) {
         while(existings.hasNext()) existings.next().setTrashed(true);
       
         if (imgObj.fileId) {
-          const file = DriveApp.getFileById(imgObj.fileId);
-          file.setName(imgObj.fileName);
-          file.moveTo(tree.evidence);
-        } else {
+          try {
+            const file = DriveApp.getFileById(imgObj.fileId);
+            const copiedFile = file.makeCopy(imgObj.fileName, tree.evidence);
+            copiedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          } catch(e) {
+            if (imgObj.base64) {
+              const blob = Utilities.newBlob(Utilities.base64Decode(imgObj.base64), 'image/jpeg', imgObj.fileName);
+              const savedFile = tree.evidence.createFile(blob);
+              savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            }
+          }
+        } else if (imgObj.base64) {
           const blob = Utilities.newBlob(Utilities.base64Decode(imgObj.base64), 'image/jpeg', imgObj.fileName);
           const savedFile = tree.evidence.createFile(blob);
           savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -1130,10 +1138,18 @@ function savePreviewToFinal(caseName, title, content, images, clearPrefix) {
         while(existings.hasNext()) existings.next().setTrashed(true);
     
         if (imgObj.fileId) {
-          const file = DriveApp.getFileById(imgObj.fileId);
-          file.setName(imgObj.fileName);
-          file.moveTo(tree.evidence);
-        } else {
+          try {
+            const file = DriveApp.getFileById(imgObj.fileId);
+            const copiedFile = file.makeCopy(imgObj.fileName, tree.evidence);
+            copiedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          } catch(e) {
+            if (imgObj.base64) {
+              const blob = Utilities.newBlob(Utilities.base64Decode(imgObj.base64), 'image/jpeg', imgObj.fileName);
+              const savedFile = tree.evidence.createFile(blob);
+              savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            }
+          }
+        } else if (imgObj.base64) {
           const blob = Utilities.newBlob(Utilities.base64Decode(imgObj.base64), 'image/jpeg', imgObj.fileName);
           const savedFile = tree.evidence.createFile(blob);
           savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
