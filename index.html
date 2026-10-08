@@ -886,10 +886,12 @@
       function formatJapaneseDateToShort(dateStr) {
         if (!dateStr) return dateStr;
         let s = dateStr.replace(/[\s\u3000]+/g, '');
-        s = s.replace(/([０-９0-9〇◯]{4})[年/\.]([０-９0-9〇◯]{1,2})[月/\.]([０-９0-9〇◯]{1,2})日?/, function(match, y, m, d) {
-          y = y.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
-          m = m.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
-          d = d.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+        
+        // Convert full-width alphanumeric to half-width for uniform processing
+        s = s.replace(/[０-９Ａ-Ｚａ-ｚ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+
+        // Process YYYY[年/.]MM[月/.]DD[日] (Gregorian year dates)
+        s = s.replace(/([0-9〇◯]{4})[年/\.]([0-9〇◯]{1,2})[月/\.]([0-9〇◯]{1,2})日?/, function(match, y, m, d) {
           let yearNum = y.match(/[〇◯]/) ? y : parseInt(y, 10);
           let mNum = m.match(/[〇◯]/) ? m : parseInt(m, 10);
           let dNum = d.match(/[〇◯]/) ? d : parseInt(d, 10);
@@ -907,19 +909,20 @@
           }
           return match;
         });
-        s = s.replace(/(令和|平成|昭和)([０-９0-9元〇◯]+)年([０-９0-9〇◯]+)月([０-９0-9〇◯]+)日?/, function(match, gengo, y, m, d) {
-          y = y.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
-          m = m.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
-          d = d.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+
+        // Process Era dates (令和|平成|昭和|R|H|S)[年/.]MM[月/.]DD[日]
+        s = s.replace(/(令和|平成|昭和|R|H|S|Ｒ|Ｈ|Ｓ)([0-9元〇◯]+)[年\./]([0-9〇◯]+)[月\./]([0-9〇◯]+)日?/i, function(match, gengo, y, m, d) {
           if (y === '元') y = '1';
           let yVal = y.match(/[〇◯]/) ? y : parseInt(y, 10);
           let mVal = m.match(/[〇◯]/) ? m : parseInt(m, 10);
           let dVal = d.match(/[〇◯]/) ? d : parseInt(d, 10);
           let prefix = 'R';
-          if (gengo === '平成') prefix = 'H';
-          if (gengo === '昭和') prefix = 'S';
+          let g = gengo.toUpperCase();
+          if (g === '平成' || g === 'H' || g === 'Ｈ') prefix = 'H';
+          if (g === '昭和' || g === 'S' || g === 'Ｓ') prefix = 'S';
           return `${prefix}${yVal}.${mVal}.${dVal}`;
         });
+        
         return s;
       }
 
@@ -3655,17 +3658,17 @@
             preview.src = '';
             preview.style.display = 'none';
 
-            // 証拠説明書のドラフトがない時、画像1なら標題もクリア
+            // 画像1が変更されたらOCR情報をクリア
             const rowIndex = row.getAttribute('data-index');
             if (rowIndex === '0' || row.id === 'imgRow_1') {
-              const listVarBody = document.getElementById('listVarBody');
-              if (!listVarBody || !listVarBody.value.includes('|')) {
-                const evVarTitle = document.getElementById('evVarTitle');
-                if (evVarTitle) {
-                  evVarTitle.value = '';
-                  syncVariables('evTitle', '');
-                  evVarTitle.classList.remove('autofilled');
-                }
+              syncVariables('evTitle', '');
+              syncVariables('evDate', '');
+              syncVariables('evCreator', '');
+              syncVariables('evPurpose', '');
+              const evVarTitle = document.getElementById('evVarTitle');
+              if (evVarTitle) {
+                evVarTitle.value = '';
+                evVarTitle.classList.remove('autofilled');
               }
             }
           }
@@ -3864,17 +3867,17 @@
             preview.src = '';
             preview.style.display = 'none';
 
-            // 証拠説明書のドラフトがない時、画像1なら標題もクリア
+            // 画像1が変更されたらOCR情報をクリア
             const rowIndex = row.getAttribute('data-index');
             if (rowIndex === '0' || row.id === 'imgRow_1') {
-              const listVarBody = document.getElementById('listVarBody');
-              if (!listVarBody || !listVarBody.value.includes('|')) {
-                const evVarTitle = document.getElementById('evVarTitle');
-                if (evVarTitle) {
-                  evVarTitle.value = '';
-                  syncVariables('evTitle', '');
-                  evVarTitle.classList.remove('autofilled');
-                }
+              syncVariables('evTitle', '');
+              syncVariables('evDate', '');
+              syncVariables('evCreator', '');
+              syncVariables('evPurpose', '');
+              const evVarTitle = document.getElementById('evVarTitle');
+              if (evVarTitle) {
+                evVarTitle.value = '';
+                evVarTitle.classList.remove('autofilled');
               }
             }
           }
@@ -3896,6 +3899,24 @@
               saveEvidenceCache();
               showToast('既存のアップロードデータを再利用しました');
               checkImageInputs();
+              
+              // ▼ 追加: キャッシュ利用時も画像1ならOCRを実行
+              const rowIndex = parseInt(row.getAttribute('data-index') || '0', 10);
+              const isFirstImage = (rowIndex === 0 || row.id === 'imgRow_1');
+              const sign = document.getElementById('evVarSign') ? document.getElementById('evVarSign').value || '甲' : '甲';
+              const num = document.getElementById('evVarNum') ? document.getElementById('evVarNum').value : '';
+              if (isFirstImage && num && typeof google !== 'undefined') {
+                labelText.textContent = "☁️ OCR解析中...";
+                google.script.run.withSuccessHandler(function(res) {
+                  if (res.success) {
+                    applyOcrResultToVariables({success: true, data: res.data}, sign, num);
+                  }
+                  labelText.textContent = file.name;
+                }).withFailureHandler(function(e) {
+                  labelText.textContent = file.name;
+                }).performOcrAndExtract(cached.base64, file.type || 'image/jpeg', cached.fileId);
+              }
+              // ▲ 追加ここまで
               return;
             } else if (cached.fileId) {
               labelText.textContent = "☁️️ 読込中...";
@@ -3907,9 +3928,28 @@
                   input.setAttribute('data-file-id', cached.fileId);
                   currentCaseData.imageCache[hash].base64 = resData.base64; 
                   saveEvidenceCache();
-                  labelText.textContent = file.name;
                   showToast('クラウドの既存ファイルを再利用しました');
                   checkImageInputs();
+                  
+                  // ▼ 追加: クラウドキャッシュ利用時も画像1ならOCRを実行
+                  const rowIndex = parseInt(row.getAttribute('data-index') || '0', 10);
+                  const isFirstImage = (rowIndex === 0 || row.id === 'imgRow_1');
+                  const sign = document.getElementById('evVarSign') ? document.getElementById('evVarSign').value || '甲' : '甲';
+                  const num = document.getElementById('evVarNum') ? document.getElementById('evVarNum').value : '';
+                  if (isFirstImage && num) {
+                    labelText.textContent = "☁️ OCR解析中...";
+                    google.script.run.withSuccessHandler(function(res) {
+                      if (res.success) {
+                        applyOcrResultToVariables({success: true, data: res.data}, sign, num);
+                      }
+                      labelText.textContent = file.name;
+                    }).withFailureHandler(function(e) {
+                      labelText.textContent = file.name;
+                    }).performOcrAndExtract(resData.base64, resData.mimeType, cached.fileId);
+                  } else {
+                    labelText.textContent = file.name;
+                  }
+                  // ▲ 追加ここまで
                 }).withFailureHandler(function(e) {
                   showToast('エラー: ファイルが存在しません。キャッシュをクリアしました。');
                   delete currentCaseData.imageCache[hash];
@@ -5827,18 +5867,14 @@
         if (isFirstImage) {
           const sign = document.getElementById('evVarSign') ? document.getElementById('evVarSign').value || '甲' : '甲';
           const num = document.getElementById('evVarNum') ? document.getElementById('evVarNum').value : '';
-          const key = toZenkakuVariables(sign + num);
           
-          // evidenceMap に対象号証が保存されていない＝未確定のドラフトと判定
-          const isDraftLoaded = currentCaseData && currentCaseData.evidenceMap && currentCaseData.evidenceMap[key];
-          
-          if (!isDraftLoaded) {
-            syncVariables('evTitle', '');
-            syncVariables('evDate', '');
-            syncVariables('evCreator', '');
-            syncVariables('evPurpose', '');
-          }
+          syncVariables('evTitle', '');
+          syncVariables('evDate', '');
+          syncVariables('evCreator', '');
+          syncVariables('evPurpose', '');
+          if (document.getElementById('evVarTitle')) document.getElementById('evVarTitle').value = '';
         }
+
       }
     </script>
     <div id="evidenceOverwriteModal" class="modal-overlay" style="z-index: 10500;">
